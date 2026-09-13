@@ -14,32 +14,77 @@ const NAV = [
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const path = usePathname() ?? "";
+  const [menu, setMenu] = useState(false);
+
+  useEffect(() => {
+    setMenu(false);
+  }, [path]);
+
+  const links = NAV.map((item) => {
+    const active = item.href === "/" ? path === "/" : path.startsWith(item.href);
+    return (
+      <Link
+        key={item.href}
+        href={item.href}
+        onClick={() => setMenu(false)}
+        className={`block rounded-lg px-3 py-3 text-sm font-medium lg:py-2.5 ${
+          active ? "bg-teal-500 text-slate-950" : "text-slate-300 hover:bg-white/10 hover:text-white"
+        }`}
+      >
+        {item.label}
+      </Link>
+    );
+  });
+
   return (
     <div className="min-h-full bg-slate-50 text-slate-900">
-      <aside className="fixed inset-y-0 left-0 z-20 flex w-72 flex-col border-r border-slate-200 bg-slate-950 text-white">
-        <div className="border-b border-white/10 px-5 py-5">
-          <div className="text-xs font-semibold uppercase text-teal-300">ASG.KZ</div>
-          <div className="mt-1 text-lg font-semibold leading-snug">Контроль проектов</div>
+      <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-white/10 bg-slate-950 px-4 py-3 text-white lg:hidden">
+        <button
+          type="button"
+          aria-label="Открыть меню"
+          className="flex h-11 w-11 items-center justify-center rounded-lg hover:bg-white/10"
+          onClick={() => setMenu(true)}
+        >
+          <span className="sr-only">Меню</span>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+          </svg>
+        </button>
+        <div className="min-w-0">
+          <div className="text-[10px] font-semibold uppercase tracking-wide text-teal-300">ASG.KZ</div>
+          <div className="truncate text-sm font-semibold">Контроль проектов</div>
         </div>
-        <nav className="flex-1 space-y-1 p-3" suppressHydrationWarning>
-          {NAV.map((item) => {
-            const active = item.href === "/" ? path === "/" : path.startsWith(item.href);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`block rounded-lg px-3 py-2.5 text-sm font-medium ${
-                  active ? "bg-teal-500 text-slate-950" : "text-slate-300 hover:bg-white/10 hover:text-white"
-                }`}
-              >
-                {item.label}
-              </Link>
-            );
-          })}
+      </header>
+
+      {menu ? (
+        <button
+          type="button"
+          aria-label="Закрыть меню"
+          className="fixed inset-0 z-40 bg-slate-950/50 lg:hidden"
+          onClick={() => setMenu(false)}
+        />
+      ) : null}
+
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 flex w-[min(18rem,86vw)] flex-col border-r border-slate-200 bg-slate-950 text-white transition-transform duration-200 lg:translate-x-0 ${
+          menu ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        <div className="flex items-start justify-between border-b border-white/10 px-5 py-5">
+          <div>
+            <div className="text-xs font-semibold uppercase text-teal-300">ASG.KZ</div>
+            <div className="mt-1 text-lg font-semibold leading-snug">Контроль проектов</div>
+          </div>
+          <button type="button" className="rounded-lg p-2 text-slate-300 lg:hidden" onClick={() => setMenu(false)} aria-label="Закрыть">
+            ✕
+          </button>
+        </div>
+        <nav className="flex-1 space-y-1 overflow-y-auto p-3" suppressHydrationWarning>
+          {links}
         </nav>
       </aside>
-      <div className="pl-72">
-        <main className="mx-auto max-w-7xl px-8 py-8">{children}</main>
+      <div className="lg:pl-72">
+        <main className="mx-auto max-w-7xl px-4 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-8">{children}</main>
       </div>
     </div>
   );
@@ -55,12 +100,12 @@ export function PageHeader({
   action?: React.ReactNode;
 }) {
   return (
-    <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+    <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
+      <div className="min-w-0">
+        <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">{title}</h1>
         {subtitle ? <p className="mt-1 text-sm text-slate-500">{subtitle}</p> : null}
       </div>
-      {action}
+      {action ? <div className="w-full shrink-0 sm:w-auto [&_button]:w-full sm:[&_button]:w-auto">{action}</div> : null}
     </div>
   );
 }
@@ -89,7 +134,7 @@ export function Btn({
       type={type}
       onClick={onClick}
       disabled={disabled}
-      className={`rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-50 ${cls}`}
+      className={`min-h-11 rounded-lg px-4 py-2.5 text-sm font-medium disabled:opacity-50 sm:py-2 ${cls}`}
     >
       {children}
     </button>
@@ -109,15 +154,15 @@ export function Modal({
 }) {
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/50 p-6">
-      <div className="my-8 flex max-h-[90vh] w-full max-w-2xl flex-col rounded-2xl bg-white shadow-xl">
-        <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-6 py-4">
-          <h2 className="text-lg font-semibold">{title}</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-700" type="button">
+    <div className="fixed inset-0 z-50 flex items-stretch justify-center overflow-y-auto bg-slate-950/50 p-0 sm:items-start sm:p-6">
+      <div className="flex h-full max-h-none w-full max-w-2xl flex-col rounded-none bg-white shadow-xl sm:my-8 sm:h-auto sm:max-h-[90vh] sm:rounded-2xl">
+        <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-4 py-4 sm:px-6">
+          <h2 className="pr-4 text-base font-semibold sm:text-lg">{title}</h2>
+          <button onClick={onClose} className="flex h-11 w-11 items-center justify-center text-slate-400 hover:text-slate-700 sm:h-auto sm:w-auto" type="button">
             ✕
           </button>
         </div>
-        <div className="overflow-y-auto px-6 py-5">{children}</div>
+        <div className="overflow-y-auto px-4 py-5 sm:px-6">{children}</div>
       </div>
     </div>
   );
@@ -139,7 +184,7 @@ export function Field({
 }
 
 export const inputClass =
-  "w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100";
+  "w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-base outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100 sm:py-2 sm:text-sm";
 
 export function FileUpload({
   label,
@@ -305,12 +350,12 @@ export function Table({
   children: React.ReactNode;
 }) {
   return (
-    <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
-      <table className="min-w-full text-left text-sm">
+    <div className="-mx-4 overflow-x-auto sm:mx-0 rounded-none border-y border-slate-200 bg-white sm:rounded-xl sm:border">
+      <table className="min-w-[720px] w-full text-left text-xs sm:min-w-full sm:text-sm">
         <thead className="bg-slate-50 text-slate-500">
           <tr>
             {columns.map((c) => (
-              <th key={c} className="px-4 py-3 font-medium">
+              <th key={c} className="whitespace-nowrap px-3 py-3 font-medium sm:px-4">
                 {c}
               </th>
             ))}

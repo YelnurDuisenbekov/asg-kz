@@ -138,7 +138,8 @@ export function PaymentsClient({
                   ))}
                   {p.documents.length === 0 ? "—" : null}
                 </td>
-                <td className="px-4 py-3 text-right whitespace-nowrap">
+                <td className="px-3 py-3 text-right sm:px-4">
+                  <div className="flex flex-wrap justify-end gap-x-3 gap-y-1">
                   {status === "PENDING" ? (
                     <button
                       className="mr-3 text-sky-700"
@@ -161,6 +162,7 @@ export function PaymentsClient({
                   <button className="text-red-600" onClick={() => start(() => deletePayment(p.id))}>
                     Удалить
                   </button>
+                  </div>
                 </td>
               </tr>
             );
@@ -256,7 +258,7 @@ export function PaymentsClient({
           <p className="mt-3 text-sm text-slate-500">После сохранения статус будет «На согласовании».</p>
         ) : null}
         {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
-        <div className="mt-6 flex justify-end gap-2">
+        <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <Btn variant="ghost" onClick={() => setOpen(false)}>
             Отмена
           </Btn>

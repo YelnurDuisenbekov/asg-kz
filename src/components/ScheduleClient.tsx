@@ -105,7 +105,7 @@ export function ScheduleClient({
             </Btn>
           </div>
         </Field>
-        <div className="flex items-end gap-3 text-xs">
+        <div className="flex flex-wrap items-end gap-2 text-xs">
           <span className="rounded-full bg-emerald-100 px-2 py-1 text-emerald-800">Зелёный — по плану</span>
           <span className="rounded-full bg-amber-100 px-2 py-1 text-amber-900">Жёлтый — срок близко</span>
           <span className="rounded-full bg-red-100 px-2 py-1 text-red-800">Красный — просрочено</span>
@@ -116,7 +116,7 @@ export function ScheduleClient({
         {filtered.length === 0 ? (
           <p className="px-4 py-12 text-center text-slate-400">Задач нет. Добавьте первую по выбранному проекту.</p>
         ) : (
-          <div className="min-w-[900px] p-4">
+          <div className="space-y-4 p-3 sm:min-w-[880px] sm:p-4">
             {filtered
               .slice()
               .sort((a, b) => toTime(a.startDate) - toTime(b.startDate))
@@ -126,7 +126,7 @@ export function ScheduleClient({
                 const width = Math.max(((toTime(t.endDate) - toTime(t.startDate)) / span) * 100, 2);
                 const c = contracts.find((x) => x.id === t.contractId);
                 return (
-                  <div key={t.id} className="mb-4 grid grid-cols-[240px_1fr_160px] items-center gap-3">
+                  <div key={t.id} className="grid gap-2 sm:grid-cols-[220px_1fr_150px] sm:items-center sm:gap-3">
                     <div>
                       <div className="font-medium">{t.name}</div>
                       <div className="text-xs text-slate-500">
@@ -140,20 +140,20 @@ export function ScheduleClient({
                         title={st.label}
                       />
                     </div>
-                    <div className="flex items-center justify-end gap-2">
+                    <div className="flex flex-wrap items-center gap-2 sm:justify-end">
                       <span className={`rounded-full px-2 py-0.5 text-xs ${st.chip}`}>{st.label}</span>
                       <button
-                        className="text-xs text-teal-700"
+                        className="min-h-11 px-2 text-sm text-teal-700 sm:min-h-0 sm:text-xs"
                         onClick={() => {
                           setForm({ ...t });
                           setError("");
                           setOpen(true);
                         }}
                       >
-                        Изм.
+                        Изменить
                       </button>
-                      <button className="text-xs text-red-600" onClick={() => start(() => deleteTask(t.id))}>
-                        Уд.
+                      <button className="min-h-11 px-2 text-sm text-red-600 sm:min-h-0 sm:text-xs" onClick={() => start(() => deleteTask(t.id))}>
+                        Удалить
                       </button>
                     </div>
                   </div>
@@ -196,7 +196,7 @@ export function ScheduleClient({
           </div>
         </div>
         {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
-        <div className="mt-6 flex justify-end gap-2">
+        <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <Btn variant="ghost" onClick={() => setOpen(false)}>
             Отмена
           </Btn>

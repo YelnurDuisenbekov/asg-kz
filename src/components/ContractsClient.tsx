@@ -258,7 +258,7 @@ export function ContractsClient({
           </div>
         </div>
         {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
-        <div className="mt-6 flex justify-end gap-2">
+        <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <Btn variant="ghost" onClick={() => setOpen(false)}>
             Отмена
           </Btn>

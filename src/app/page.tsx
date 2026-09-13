@@ -17,7 +17,7 @@ export default function DashboardPage() {
   return (
     <>
       <div className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight">Свод по договорам</h1>
+        <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">Свод по договорам</h1>
         <p className="mt-1 text-sm text-slate-500">Потрачено, получено и ожидаемые поступления</p>
       </div>
       <div className="mb-8 grid gap-4 sm:grid-cols-3">
@@ -28,8 +28,8 @@ export default function DashboardPage() {
       <div className="mb-8 rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-600">
         По графику планируемых доходов: <b className="text-slate-900">{money(planned)}</b>
       </div>
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
-        <table className="min-w-full text-left text-sm">
+      <div className="-mx-4 overflow-x-auto sm:mx-0 rounded-none border-y border-slate-200 bg-white sm:rounded-xl sm:border">
+        <table className="min-w-[640px] w-full text-left text-xs sm:text-sm">
           <thead className="bg-slate-50 text-slate-500">
             <tr>
               {["Договор", "Сумма", "Потрачено", "Получено", "К поступлению", "План. маржа"].map((c) => (
@@ -81,7 +81,7 @@ function Card({ title, value, hint }: { title: string; value: string; hint: stri
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-5">
       <div className="text-sm text-slate-500">{title}</div>
-      <div className="mt-2 text-2xl font-semibold">{value}</div>
+      <div className="mt-2 text-xl font-semibold break-words sm:text-2xl">{value}</div>
       <div className="mt-1 text-xs text-slate-400">{hint}</div>
     </div>
   );

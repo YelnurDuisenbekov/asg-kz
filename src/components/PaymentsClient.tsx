@@ -142,7 +142,7 @@ export function PaymentsClient({
                   {status === "PENDING" ? (
                     <button
                       className="mr-3 text-sky-700"
-                      onClick={() => start(() => setPaymentStatus(p.id, "APPROVED"))}
+                      onClick={() => start(async () => { await setPaymentStatus(p.id, "APPROVED"); })}
                     >
                       Согласовать
                     </button>
@@ -150,7 +150,7 @@ export function PaymentsClient({
                   {status === "APPROVED" ? (
                     <button
                       className="mr-3 text-emerald-700"
-                      onClick={() => start(() => setPaymentStatus(p.id, "PAID"))}
+                      onClick={() => start(async () => { await setPaymentStatus(p.id, "PAID"); })}
                     >
                       Оплатить
                     </button>

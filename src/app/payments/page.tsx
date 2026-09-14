@@ -1,8 +1,8 @@
 import { readDb } from "@/lib/db";
 import { PaymentsClient } from "@/components/PaymentsClient";
 
-export default function PaymentsPage() {
-  const db = readDb();
+export default async function PaymentsPage() {
+  const db = await readDb();
   return (
     <PaymentsClient
       payments={db.payments}

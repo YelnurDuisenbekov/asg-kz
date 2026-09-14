@@ -17,8 +17,8 @@ function signedMetrics(contracts: Contract[], payments: Payment[], incomes: Inco
   return { amount, spent, received, remainder, count: contracts.length };
 }
 
-export default function DashboardPage() {
-  const db = readDb();
+export default async function DashboardPage() {
+  const db = await readDb();
   const own = db.contracts.filter((c) => c.executionType === "OWN");
   const partial = db.contracts.filter((c) => c.executionType === "PARTIAL_SUB");
   const full = db.contracts.filter((c) => c.executionType === "FULL_SUB");

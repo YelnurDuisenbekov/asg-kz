@@ -2,8 +2,8 @@ import { Suspense } from "react";
 import { readDb } from "@/lib/db";
 import { WorkClient } from "@/components/WorkClient";
 
-export default function WorkPage() {
-  const db = readDb();
+export default async function WorkPage() {
+  const db = await readDb();
   return (
     <Suspense>
       <WorkClient

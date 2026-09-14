@@ -2,8 +2,8 @@ import { Suspense } from "react";
 import { readDb } from "@/lib/db";
 import { ContractsClient } from "@/components/ContractsClient";
 
-export default function ContractsPage() {
-  const db = readDb();
+export default async function ContractsPage() {
+  const db = await readDb();
   return (
     <Suspense>
       <ContractsClient

@@ -1,8 +1,8 @@
 import { readDb } from "@/lib/db";
 import { IncomeClient } from "@/components/IncomeClient";
 
-export default function IncomePage() {
-  const db = readDb();
+export default async function IncomePage() {
+  const db = await readDb();
   return (
     <IncomeClient
       incomes={db.incomes}

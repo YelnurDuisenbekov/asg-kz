@@ -1,4 +1,5 @@
 export type PaymentStatus = "PENDING" | "APPROVED" | "PAID";
+export type WorkStatus = "NEW" | "ESTIMATE" | "APPROVAL" | "SUBMITTED" | "SIGNED" | "REJECTED";
 export type ExecutionType = "OWN" | "PARTIAL_SUB" | "FULL_SUB";
 export type AmountMode = "PERCENT" | "AMOUNT";
 
@@ -9,6 +10,7 @@ export type Subcontractor = {
 
 export type Contract = {
   id: string;
+  title: string;
   number: string;
   date: string;
   customer: string;
@@ -17,6 +19,8 @@ export type Contract = {
   amount: number;
   plannedCost: number;
   documents: PaymentDocument[];
+  responsibleId?: string;
+  workItemId?: string;
   createdAt: string;
 };
 
@@ -76,6 +80,18 @@ export type Task = {
   createdAt: string;
 };
 
+export type WorkItem = {
+  id: string;
+  lots: string;
+  tenderUrl: string;
+  customer: string;
+  amount: number;
+  status: WorkStatus;
+  responsibleId?: string;
+  documents: PaymentDocument[];
+  createdAt: string;
+};
+
 export type Settings = {
   approachingDays: number;
 };
@@ -84,6 +100,8 @@ export type Database = {
   settings: Settings;
   subcontractors: Subcontractor[];
   counterparties: Subcontractor[];
+  people: Subcontractor[];
+  customers: Subcontractor[];
   contracts: Contract[];
   expenseTypes: NamedType[];
   incomeTypes: NamedType[];
@@ -91,4 +109,5 @@ export type Database = {
   incomes: Income[];
   plannedIncomes: PlannedIncome[];
   tasks: Task[];
+  workItems: WorkItem[];
 };

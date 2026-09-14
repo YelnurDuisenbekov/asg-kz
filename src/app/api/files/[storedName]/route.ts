@@ -17,6 +17,7 @@ export async function GET(
   const doc = [
     ...db.payments.flatMap((p) => p.documents),
     ...db.contracts.flatMap((c) => c.documents ?? []),
+    ...(db.workItems ?? []).flatMap((w) => w.documents ?? []),
   ].find((d) => d.storedName === storedName);
   if (!doc) return new NextResponse("Not found", { status: 404 });
   const path = join(uploadsDir(), storedName);

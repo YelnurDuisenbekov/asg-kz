@@ -10,7 +10,7 @@ import {
 } from "@/lib/actions";
 import { contractLabel, dateRu, money, paymentStatusLabel } from "@/lib/format";
 import type { Contract, NamedType, Payment, Subcontractor } from "@/lib/types";
-import { Btn, CreatableSelect, Field, Modal, PageHeader, Table, inputClass } from "./ui";
+import { Btn, CreatableSelect, Field, ItemList, ItemRow, Modal, PageHeader, inputClass } from "./ui";
 
 const EMPTY = {
   id: "",
@@ -101,48 +101,31 @@ export function PaymentsClient({
         subtitle="Сначала согласование директором, затем оплата бухгалтером"
         action={<Btn onClick={create}>Добавить платёж</Btn>}
       />
-      <Table
-        columns={["Тип", "Договор", "Контрагент", "Назначение", "Сумма", "Срок", "Статус", "Документы", ""]}
-      >
-        {payments.length === 0 ? (
-          <tr>
-            <td colSpan={9} className="px-4 py-10 text-center text-slate-400">
-              Платежей пока нет
-            </td>
-          </tr>
-        ) : (
-          payments.map((p) => {
-            const status = p.status ?? "PENDING";
-            return (
-              <tr key={p.id} className="hover:bg-slate-50">
-                <td className="px-4 py-3">{typeMap[p.expenseTypeId]?.name ?? "—"}</td>
-                <td className="px-4 py-3">
-                  {p.contractId && contractById[p.contractId]
-                    ? contractLabel(contractById[p.contractId])
-                    : "—"}
-                </td>
-                <td className="px-4 py-3">{p.counterparty}</td>
-                <td className="px-4 py-3">{p.purpose}</td>
-                <td className="px-4 py-3">{money(p.amount)}</td>
-                <td className="px-4 py-3">{dateRu(p.dueDate)}</td>
-                <td className="px-4 py-3">{statusChip(status)}</td>
-                <td className="px-4 py-3">
-                  {p.documents.map((d) => (
-                    <a
-                      key={d.id}
-                      className="mr-2 text-teal-700 underline"
-                      href={`/api/files/${encodeURIComponent(d.storedName)}`}
-                    >
-                      {d.originalName}
-                    </a>
-                  ))}
-                  {p.documents.length === 0 ? "—" : null}
-                </td>
-                <td className="px-3 py-3 text-right sm:px-4">
-                  <div className="flex flex-wrap justify-end gap-x-3 gap-y-1">
+      <ItemList empty={payments.length === 0} emptyText="Платежей пока нет">
+        {payments.map((p) => {
+          const status = p.status ?? "PENDING";
+          return (
+            <ItemRow
+              key={p.id}
+              onClick={() => edit(p)}
+              title={p.purpose || p.counterparty || "Платёж"}
+              lines={[
+                `${typeMap[p.expenseTypeId]?.name ?? "Тип"} · ${p.counterparty || "—"}`,
+                p.contractId && contractById[p.contractId]
+                  ? contractLabel(contractById[p.contractId])
+                  : dateRu(p.dueDate),
+              ]}
+              right={
+                <>
+                  <div className="whitespace-nowrap font-medium">{money(p.amount)}</div>
+                  <div className="mt-1">{statusChip(status)}</div>
+                </>
+              }
+              actions={
+                <>
                   {status === "PENDING" ? (
                     <button
-                      className="mr-3 text-sky-700"
+                      className="text-sm text-sky-700"
                       onClick={() => start(async () => { await setPaymentStatus(p.id, "APPROVED"); })}
                     >
                       Согласовать
@@ -150,25 +133,21 @@ export function PaymentsClient({
                   ) : null}
                   {status === "APPROVED" ? (
                     <button
-                      className="mr-3 text-emerald-700"
+                      className="text-sm text-emerald-700"
                       onClick={() => start(async () => { await setPaymentStatus(p.id, "PAID"); })}
                     >
                       Оплатить
                     </button>
                   ) : null}
-                  <button className="mr-3 text-teal-700" onClick={() => edit(p)}>
-                    Изменить
-                  </button>
-                  <button className="text-red-600" onClick={() => start(() => deletePayment(p.id))}>
+                  <button className="text-sm text-red-600" onClick={() => start(() => deletePayment(p.id))}>
                     Удалить
                   </button>
-                  </div>
-                </td>
-              </tr>
-            );
-          })
-        )}
-      </Table>
+                </>
+              }
+            />
+          );
+        })}
+      </ItemList>
 
       <Modal title={form.id ? "Редактирование платежа" : "Новый платёж"} open={open} onClose={() => setOpen(false)}>
         <div className="grid gap-4 sm:grid-cols-2">
@@ -190,7 +169,7 @@ export function PaymentsClient({
           </div>
           {byContract ? (
             <div className="sm:col-span-2">
-              <Field label="Договор (заказчик_номер_дата)">
+              <Field label="Договор (заказчик_номер_дата_наименование)">
                 <select
                   className={inputClass}
                   value={form.contractId}

@@ -12,6 +12,8 @@ function emptyDb(): Database {
     settings: { approachingDays: 7 },
     subcontractors: [],
     counterparties: [],
+    people: [],
+    customers: [],
     contracts: [],
     expenseTypes: [
       { id: "exp-contract", name: "По договору", isSystem: true, code: "CONTRACT" },
@@ -26,6 +28,7 @@ function emptyDb(): Database {
     incomes: [],
     plannedIncomes: [],
     tasks: [],
+    workItems: [],
   };
 }
 
@@ -48,11 +51,18 @@ export function readDb(): Database {
       incomeTypes: parsed.incomeTypes?.length ? parsed.incomeTypes : base.incomeTypes,
       contracts: (parsed.contracts ?? []).map((c) => ({
         ...c,
+        title: c.title ?? "",
         documents: c.documents ?? [],
       })),
+      people: parsed.people ?? [],
       payments: (parsed.payments ?? []).map((p) => ({
         ...p,
         status: p.status ?? "PENDING",
+      })),
+      workItems: (parsed.workItems ?? []).map((w) => ({
+        ...w,
+        documents: w.documents ?? [],
+        status: w.status ?? "NEW",
       })),
       counterparties: (() => {
         const list = [...(parsed.counterparties ?? [])];
@@ -60,6 +70,19 @@ export function readDb(): Database {
           const name = p.counterparty?.trim();
           if (name && !list.some((c) => c.name.toLowerCase() === name.toLowerCase())) {
             list.push({ id: `cp-${list.length}-${name}`, name });
+          }
+        }
+        return list;
+      })(),
+      customers: (() => {
+        const list = [...(parsed.customers ?? [])];
+        for (const name of [
+          ...(parsed.contracts ?? []).map((c) => c.customer),
+          ...(parsed.workItems ?? []).map((w) => w.customer),
+        ]) {
+          const n = name?.trim();
+          if (n && !list.some((c) => c.name.toLowerCase() === n.toLowerCase())) {
+            list.push({ id: `cu-${list.length}-${n}`, name: n });
           }
         }
         return list;

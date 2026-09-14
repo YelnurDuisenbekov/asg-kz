@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 
 const NAV = [
   { href: "/", label: "Свод" },
+  { href: "/work", label: "В работе" },
   { href: "/contracts", label: "Договоры" },
   { href: "/payments", label: "Платежи" },
   { href: "/income", label: "Доходы" },
@@ -342,6 +343,111 @@ export function CreatableSelect({
   );
 }
 
+export function CreatableMultiSelect({
+  values,
+  options,
+  onChange,
+  onCreate,
+  createLabel,
+  placeholder = "Выберите",
+}: {
+  values: string[];
+  options: { value: string; label: string }[];
+  onChange: (values: string[]) => void;
+  onCreate: (name: string) => Promise<void> | void;
+  createLabel: string;
+  placeholder?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [draft, setDraft] = useState("");
+  const box = useRef<HTMLDivElement>(null);
+  const selected = options.filter((o) => values.includes(o.value));
+  const label = selected.map((o) => o.label).join(", ") || placeholder;
+
+  useEffect(() => {
+    function hide(e: MouseEvent) {
+      if (!box.current?.contains(e.target as Node)) {
+        setOpen(false);
+        setAdding(false);
+        setDraft("");
+      }
+    }
+    document.addEventListener("mousedown", hide);
+    return () => document.removeEventListener("mousedown", hide);
+  }, []);
+
+  async function create() {
+    const name = draft.trim();
+    if (!name) return;
+    await onCreate(name);
+    setDraft("");
+    setAdding(false);
+  }
+
+  function toggle(value: string) {
+    onChange(values.includes(value) ? values.filter((v) => v !== value) : [...values, value]);
+  }
+
+  return (
+    <div className="relative" ref={box}>
+      <button type="button" className={`${inputClass} text-left`} onClick={() => setOpen((v) => !v)}>
+        {label}
+      </button>
+      {open ? (
+        <div className="absolute z-30 mt-1 max-h-64 w-full overflow-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
+          {options.map((o) => {
+            const on = values.includes(o.value);
+            return (
+              <button
+                key={o.value}
+                type="button"
+                className={`block w-full px-3 py-2 text-left text-sm hover:bg-slate-50 ${
+                  on ? "bg-teal-50 text-teal-800" : ""
+                }`}
+                onClick={() => toggle(o.value)}
+              >
+                {on ? "✓ " : ""}
+                {o.label}
+              </button>
+            );
+          })}
+          <div className="border-t border-slate-100 px-2 py-2">
+            {adding ? (
+              <div className="flex gap-2">
+                <input
+                  autoFocus
+                  className={inputClass}
+                  placeholder="Новое наименование"
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      void create();
+                    }
+                  }}
+                />
+                <button type="button" className="shrink-0 rounded-lg bg-teal-600 px-3 text-sm text-white" onClick={() => void create()}>
+                  OK
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                className="w-full rounded-md px-2 py-1.5 text-left text-sm font-medium text-teal-700 hover:bg-teal-50"
+                onClick={() => setAdding(true)}
+              >
+                {createLabel}
+              </button>
+            )}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export function Table({
   columns,
   children,
@@ -364,5 +470,61 @@ export function Table({
         <tbody className="divide-y divide-slate-100">{children}</tbody>
       </table>
     </div>
+  );
+}
+
+export function ItemList({
+  empty,
+  emptyText,
+  children,
+}: {
+  empty: boolean;
+  emptyText: string;
+  children: React.ReactNode;
+}) {
+  if (empty) {
+    return (
+      <div className="rounded-xl border border-dashed border-slate-200 bg-white px-4 py-12 text-center text-slate-400">
+        {emptyText}
+      </div>
+    );
+  }
+  return (
+    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+      <ul className="divide-y divide-slate-100">{children}</ul>
+    </div>
+  );
+}
+
+export function ItemRow({
+  onClick,
+  title,
+  lines,
+  right,
+  actions,
+}: {
+  onClick: () => void;
+  title: string;
+  lines?: React.ReactNode[];
+  right?: React.ReactNode;
+  actions?: React.ReactNode;
+}) {
+  return (
+    <li className="flex items-stretch hover:bg-slate-50">
+      <button type="button" onClick={onClick} className="flex min-w-0 flex-1 items-center gap-3 px-3 py-3 text-left sm:px-4">
+        <div className="min-w-0 flex-1">
+          <div className="truncate font-medium text-slate-900">{title}</div>
+          {lines?.map((line, i) => (
+            <div key={i} className="mt-0.5 truncate text-xs text-slate-500">
+              {line}
+            </div>
+          ))}
+        </div>
+        {right ? <div className="shrink-0 text-right text-sm text-slate-700">{right}</div> : null}
+      </button>
+      {actions ? (
+        <div className="flex shrink-0 items-center gap-2 pr-3 sm:pr-4">{actions}</div>
+      ) : null}
+    </li>
   );
 }

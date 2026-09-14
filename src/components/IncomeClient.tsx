@@ -10,7 +10,7 @@ import {
 } from "@/lib/actions";
 import { contractLabel, dateRu, money, plannedIncomeAmount } from "@/lib/format";
 import type { AmountMode, Contract, Income, NamedType, PlannedIncome } from "@/lib/types";
-import { Btn, Field, Modal, PageHeader, Table, inputClass } from "./ui";
+import { Btn, Field, ItemList, ItemRow, Modal, PageHeader, inputClass } from "./ui";
 
 export function IncomeClient({
   incomes,
@@ -115,94 +115,69 @@ export function IncomeClient({
       </div>
 
       {tab === "fact" ? (
-        <Table columns={["Тип", "Договор", "Сумма", "Дата", "Назначение", ""]}>
-          {incomes.length === 0 ? (
-            <tr>
-              <td colSpan={6} className="px-4 py-10 text-center text-slate-400">
-                Доходов пока нет
-              </td>
-            </tr>
-          ) : (
-            incomes.map((i) => (
-              <tr key={i.id} className="hover:bg-slate-50">
-                <td className="px-4 py-3">{typeMap[i.incomeTypeId]?.name ?? "—"}</td>
-                <td className="px-4 py-3">
-                  {i.contractId && contractById[i.contractId] ? contractLabel(contractById[i.contractId]) : "—"}
-                </td>
-                <td className="px-4 py-3">{money(i.amount)}</td>
-                <td className="px-4 py-3">{dateRu(i.date)}</td>
-                <td className="px-4 py-3">{i.purpose}</td>
-                <td className="px-4 py-3 text-right whitespace-nowrap">
-                  <button
-                    className="mr-3 text-teal-700"
-                    onClick={() => {
-                      setForm({
-                        id: i.id,
-                        incomeTypeId: i.incomeTypeId,
-                        contractId: i.contractId ?? "",
-                        amount: String(i.amount),
-                        date: i.date,
-                        purpose: i.purpose,
-                      });
-                      setError("");
-                      setOpen(true);
-                    }}
-                  >
-                    Изменить
-                  </button>
-                  <button className="text-red-600" onClick={() => start(() => deleteIncome(i.id))}>
+        <ItemList empty={incomes.length === 0} emptyText="Доходов пока нет">
+          {incomes.map((i) => (
+            <ItemRow
+              key={i.id}
+              onClick={() => {
+                setForm({
+                  id: i.id,
+                  incomeTypeId: i.incomeTypeId,
+                  contractId: i.contractId ?? "",
+                  amount: String(i.amount),
+                  date: i.date,
+                  purpose: i.purpose,
+                });
+                setError("");
+                setOpen(true);
+              }}
+              title={i.purpose || typeMap[i.incomeTypeId]?.name || "Доход"}
+              lines={[
+                `${typeMap[i.incomeTypeId]?.name ?? "Тип"} · ${dateRu(i.date)}`,
+                i.contractId && contractById[i.contractId] ? contractLabel(contractById[i.contractId]) : undefined,
+              ].filter(Boolean) as string[]}
+              right={<div className="whitespace-nowrap font-medium">{money(i.amount)}</div>}
+              actions={
+                <button className="text-sm text-red-600" onClick={() => start(() => deleteIncome(i.id))}>
+                  Удалить
+                </button>
+              }
+            />
+          ))}
+        </ItemList>
+      ) : (
+        <ItemList empty={planned.length === 0} emptyText="Плановых поступлений нет">
+          {planned.map((p) => {
+            const c = contractById[p.contractId];
+            const amt = c ? plannedIncomeAmount(c.amount, p.mode, p.value) : p.value;
+            return (
+              <ItemRow
+                key={p.id}
+                onClick={() => {
+                  setPlan({
+                    id: p.id,
+                    contractId: p.contractId,
+                    receiptDate: p.receiptDate,
+                    mode: p.mode,
+                    value: String(p.value),
+                  });
+                  setError("");
+                  setPlanOpen(true);
+                }}
+                title={c ? c.title || contractLabel(c) : "План"}
+                lines={[
+                  `${dateRu(p.receiptDate)} · ${p.mode === "PERCENT" ? `${p.value}%` : money(p.value)}`,
+                ]}
+                right={<div className="whitespace-nowrap font-medium">{money(amt)}</div>}
+                actions={
+                  <button className="text-sm text-red-600" onClick={() => start(() => deletePlannedIncome(p.id))}>
                     Удалить
                   </button>
-                </td>
-              </tr>
-            ))
-          )}
-        </Table>
-      ) : (
-        <Table columns={["Договор", "Дата получения", "Способ", "Значение", "Сумма к получению", ""]}>
-          {planned.length === 0 ? (
-            <tr>
-              <td colSpan={6} className="px-4 py-10 text-center text-slate-400">
-                Плановых поступлений нет
-              </td>
-            </tr>
-          ) : (
-            planned.map((p) => {
-              const c = contractById[p.contractId];
-              const amt = c ? plannedIncomeAmount(c.amount, p.mode, p.value) : p.value;
-              return (
-                <tr key={p.id} className="hover:bg-slate-50">
-                  <td className="px-4 py-3">{c ? contractLabel(c) : "—"}</td>
-                  <td className="px-4 py-3">{dateRu(p.receiptDate)}</td>
-                  <td className="px-4 py-3">{p.mode === "PERCENT" ? "Процентное" : "Количественное"}</td>
-                  <td className="px-4 py-3">{p.mode === "PERCENT" ? `${p.value}%` : money(p.value)}</td>
-                  <td className="px-4 py-3">{money(amt)}</td>
-                  <td className="px-4 py-3 text-right whitespace-nowrap">
-                    <button
-                      className="mr-3 text-teal-700"
-                      onClick={() => {
-                        setPlan({
-                          id: p.id,
-                          contractId: p.contractId,
-                          receiptDate: p.receiptDate,
-                          mode: p.mode,
-                          value: String(p.value),
-                        });
-                        setError("");
-                        setPlanOpen(true);
-                      }}
-                    >
-                      Изменить
-                    </button>
-                    <button className="text-red-600" onClick={() => start(() => deletePlannedIncome(p.id))}>
-                      Удалить
-                    </button>
-                  </td>
-                </tr>
-              );
-            })
-          )}
-        </Table>
+                }
+              />
+            );
+          })}
+        </ItemList>
       )}
 
       <Modal title={form.id ? "Редактирование дохода" : "Новый доход"} open={open} onClose={() => setOpen(false)}>
@@ -247,7 +222,7 @@ export function IncomeClient({
           </div>
           {byContract ? (
             <div className="sm:col-span-2">
-              <Field label="Договор номер">
+              <Field label="Договор (заказчик_номер_дата_наименование)">
                 <select
                   className={inputClass}
                   value={form.contractId}
@@ -289,7 +264,7 @@ export function IncomeClient({
       <Modal title={plan.id ? "Редактирование плана" : "Планируемый доход"} open={planOpen} onClose={() => setPlanOpen(false)}>
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="sm:col-span-2">
-            <Field label="Номер договора">
+            <Field label="Договор (заказчик_номер_дата_наименование)">
               <select
                 className={inputClass}
                 value={plan.contractId}

@@ -30,8 +30,11 @@ export function contractLabel(c: {
   customer: string;
   number: string;
   date: string;
+  title?: string;
 }) {
-  return `${c.customer}_${c.number}_${dateRu(c.date)}`;
+  const base = `${c.customer}_${c.number}_${dateRu(c.date)}`;
+  const name = c.title?.trim();
+  return name ? `${base}_${name}` : base;
 }
 
 export function executionLabel(type: string) {
@@ -68,6 +71,23 @@ export function daysUntil(iso: string) {
   const now = new Date();
   const today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
   return Math.round((end - today) / 86_400_000);
+}
+
+export function workStatusLabel(status: string) {
+  switch (status) {
+    case "ESTIMATE":
+      return "Расчет сметы";
+    case "APPROVAL":
+      return "На согласовании";
+    case "SUBMITTED":
+      return "Документация подана";
+    case "SIGNED":
+      return "Подписан договор";
+    case "REJECTED":
+      return "Отказано";
+    default:
+      return "Новое";
+  }
 }
 
 export function paymentStatusLabel(status: string) {

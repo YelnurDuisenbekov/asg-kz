@@ -80,7 +80,7 @@ export function ScheduleClient({
       />
 
       <div className="mb-6 grid gap-4 rounded-xl border border-slate-200 bg-white p-4 sm:grid-cols-3">
-        <Field label="Проект / договор">
+        <Field label="Договор (заказчик_номер_дата_наименование)">
           <select className={inputClass} value={projectId} onChange={(e) => setProjectId(e.target.value)}>
             <option value="">Все проекты</option>
             {contracts.map((c) => (
@@ -126,7 +126,15 @@ export function ScheduleClient({
                 const width = Math.max(((toTime(t.endDate) - toTime(t.startDate)) / span) * 100, 2);
                 const c = contracts.find((x) => x.id === t.contractId);
                 return (
-                  <div key={t.id} className="grid gap-2 sm:grid-cols-[220px_1fr_150px] sm:items-center sm:gap-3">
+                  <div
+                    key={t.id}
+                    className="grid cursor-pointer gap-2 rounded-lg px-1 py-1 hover:bg-slate-50 sm:grid-cols-[220px_1fr_150px] sm:items-center sm:gap-3"
+                    onClick={() => {
+                      setForm({ ...t });
+                      setError("");
+                      setOpen(true);
+                    }}
+                  >
                     <div>
                       <div className="font-medium">{t.name}</div>
                       <div className="text-xs text-slate-500">
@@ -143,16 +151,12 @@ export function ScheduleClient({
                     <div className="flex flex-wrap items-center gap-2 sm:justify-end">
                       <span className={`rounded-full px-2 py-0.5 text-xs ${st.chip}`}>{st.label}</span>
                       <button
-                        className="min-h-11 px-2 text-sm text-teal-700 sm:min-h-0 sm:text-xs"
-                        onClick={() => {
-                          setForm({ ...t });
-                          setError("");
-                          setOpen(true);
+                        className="min-h-11 px-2 text-sm text-red-600 sm:min-h-0 sm:text-xs"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          start(() => deleteTask(t.id));
                         }}
                       >
-                        Изменить
-                      </button>
-                      <button className="min-h-11 px-2 text-sm text-red-600 sm:min-h-0 sm:text-xs" onClick={() => start(() => deleteTask(t.id))}>
                         Удалить
                       </button>
                     </div>
@@ -166,7 +170,7 @@ export function ScheduleClient({
       <Modal title={form.id ? "Редактирование задачи" : "Новая задача"} open={open} onClose={() => setOpen(false)}>
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="sm:col-span-2">
-            <Field label="Проект (договор)">
+            <Field label="Договор (заказчик_номер_дата_наименование)">
               <select className={inputClass} value={form.contractId} onChange={(e) => setForm({ ...form, contractId: e.target.value })}>
                 <option value="">Выберите проект</option>
                 {contracts.map((c) => (

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { mkdir, writeFile, unlink } from "fs/promises";
 import { join } from "path";
 import { mutateDb, readDb, uid, uploadsDir } from "./db";
-import type { AmountMode, ExecutionType } from "./types";
+import type { AmountMode, Database, ExecutionType, WorkStatus } from "./types";
 
 function refresh() {
   revalidatePath("/", "layout");
@@ -17,6 +17,15 @@ function num(v: FormDataEntryValue | null) {
 
 function str(v: FormDataEntryValue | null) {
   return String(v ?? "").trim();
+}
+
+function rememberCustomer(db: Database, name: string) {
+  const n = name.trim();
+  if (!n) return;
+  if (!db.customers) db.customers = [];
+  if (!db.customers.some((c) => c.name.toLowerCase() === n.toLowerCase())) {
+    db.customers.push({ id: uid(), name: n });
+  }
 }
 
 export async function getState() {
@@ -47,17 +56,51 @@ export async function upsertSubcontractor(name: string) {
   return { item };
 }
 
+export async function addPerson(name: string) {
+  const n = name.trim();
+  if (!n) return { error: "Укажите ФИО ответственного" };
+  const item = mutateDb((db) => {
+    if (!db.people) db.people = [];
+    const existing = db.people.find((p) => p.name.toLowerCase() === n.toLowerCase());
+    if (existing) return existing;
+    const created = { id: uid(), name: n };
+    db.people.push(created);
+    return created;
+  });
+  refresh();
+  return { item };
+}
+
+export async function addCustomer(name: string) {
+  const n = name.trim();
+  if (!n) return { error: "Укажите наименование заказчика" };
+  const item = mutateDb((db) => {
+    if (!db.customers) db.customers = [];
+    const existing = db.customers.find((c) => c.name.toLowerCase() === n.toLowerCase());
+    if (existing) return existing;
+    const created = { id: uid(), name: n };
+    db.customers.push(created);
+    return created;
+  });
+  refresh();
+  return { item };
+}
+
 export async function upsertContract(formData: FormData) {
   const id = str(formData.get("id")) || uid();
+  const title = str(formData.get("title"));
   const number = str(formData.get("number"));
   const date = str(formData.get("date"));
   const customer = str(formData.get("customer"));
   const executionType = str(formData.get("executionType")) as ExecutionType;
   const amount = num(formData.get("amount"));
   const plannedCost = num(formData.get("plannedCost"));
+  const responsibleId = str(formData.get("responsibleId")) || undefined;
   const subcontractorIds = formData.getAll("subcontractorIds").map(String).filter(Boolean);
 
-  if (!number || !date || !customer) return { error: "Заполните номер, дату и заказчика" };
+  if (!title || !number || !date || !customer) {
+    return { error: "Заполните наименование, номер, дату и заказчика" };
+  }
   if (!["OWN", "PARTIAL_SUB", "FULL_SUB"].includes(executionType)) {
     return { error: "Выберите тип исполнения" };
   }
@@ -73,6 +116,7 @@ export async function upsertContract(formData: FormData) {
     const kept = (prev?.documents ?? []).filter((d) => keepDocs.includes(d.id));
     const next = {
       id,
+      title,
       number,
       date,
       customer,
@@ -80,12 +124,15 @@ export async function upsertContract(formData: FormData) {
       subcontractorIds: executionType === "OWN" ? [] : subcontractorIds,
       amount,
       plannedCost,
+      responsibleId,
+      workItemId: prev?.workItemId,
       documents: [...kept, ...newDocs],
       createdAt: prev?.createdAt ?? new Date().toISOString(),
     };
     const idx = db.contracts.findIndex((c) => c.id === id);
     if (idx >= 0) db.contracts[idx] = next;
     else db.contracts.unshift(next);
+    rememberCustomer(db, customer);
   });
   refresh();
   return { ok: true };
@@ -344,6 +391,109 @@ export async function upsertTask(formData: FormData) {
 export async function deleteTask(id: string) {
   mutateDb((db) => {
     db.tasks = db.tasks.filter((t) => t.id !== id);
+  });
+  refresh();
+}
+
+const WORK_STATUSES: WorkStatus[] = [
+  "NEW",
+  "ESTIMATE",
+  "APPROVAL",
+  "SUBMITTED",
+  "SIGNED",
+  "REJECTED",
+];
+
+function todayIso() {
+  const d = new Date();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${m}-${day}`;
+}
+
+export async function upsertWorkItem(formData: FormData) {
+  const id = str(formData.get("id")) || uid();
+  const lots = str(formData.get("lots"));
+  const tenderUrl = str(formData.get("tenderUrl"));
+  const customer = str(formData.get("customer"));
+  const amount = num(formData.get("amount"));
+  const status = str(formData.get("status")) as WorkStatus;
+  const responsibleId = str(formData.get("responsibleId")) || undefined;
+  const contractNumber = str(formData.get("contractNumber"));
+  const contractDate = str(formData.get("contractDate"));
+  const keepDocs = formData.getAll("keepDocIds").map(String);
+
+  if (!lots || !customer) return { error: "Укажите лоты и заказчика" };
+  if (!WORK_STATUSES.includes(status)) return { error: "Выберите статус" };
+  if (status === "SIGNED" && !(contractNumber || lots)) {
+    return { error: "Укажите номер договора" };
+  }
+
+  const newDocs = await saveDocs(formData);
+
+  mutateDb((db) => {
+    if (!db.workItems) db.workItems = [];
+    const prev = db.workItems.find((w) => w.id === id);
+    const kept = (prev?.documents ?? []).filter((d) => keepDocs.includes(d.id));
+    const documents = [...kept, ...newDocs];
+    const createdAt = prev?.createdAt ?? new Date().toISOString();
+
+    if (status === "SIGNED") {
+      const number = contractNumber || lots;
+      const date = contractDate || todayIso();
+      const existing = db.contracts.find((c) => c.workItemId === id);
+      const contract = {
+        id: existing?.id ?? uid(),
+        title: existing?.title || lots,
+        number,
+        date,
+        customer,
+        executionType: "OWN" as const,
+        subcontractorIds: existing?.subcontractorIds ?? [],
+        amount,
+        plannedCost: existing?.plannedCost ?? 0,
+        documents,
+        responsibleId,
+        workItemId: id,
+        createdAt: existing?.createdAt ?? createdAt,
+      };
+      const cidx = db.contracts.findIndex((c) => c.id === contract.id);
+      if (cidx >= 0) db.contracts[cidx] = contract;
+      else db.contracts.unshift(contract);
+      db.workItems = db.workItems.filter((w) => w.id !== id);
+      rememberCustomer(db, customer);
+      return;
+    }
+
+    const next = {
+      id,
+      lots,
+      tenderUrl,
+      customer,
+      amount,
+      status,
+      responsibleId,
+      documents,
+      createdAt,
+    };
+    const idx = db.workItems.findIndex((w) => w.id === id);
+    if (idx >= 0) db.workItems[idx] = next;
+    else db.workItems.unshift(next);
+    rememberCustomer(db, customer);
+  });
+  refresh();
+  return { ok: true, movedToContracts: status === "SIGNED" };
+}
+
+export async function deleteWorkItem(id: string) {
+  const item = readDb().workItems?.find((w) => w.id === id);
+  if (item) {
+    for (const doc of item.documents ?? []) {
+      await unlink(join(uploadsDir(), doc.storedName)).catch(() => undefined);
+    }
+  }
+  mutateDb((db) => {
+    db.workItems = (db.workItems ?? []).filter((w) => w.id !== id);
   });
   refresh();
 }

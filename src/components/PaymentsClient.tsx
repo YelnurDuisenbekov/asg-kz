@@ -1,251 +1,190 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
-import {
-  addCounterparty,
-  addNamedType,
-  deletePayment,
-  setPaymentStatus,
-  upsertPayment,
-} from "@/lib/actions";
+import { useState } from "react";
+import { deletePayment, setPaymentStatus, upsertPayment } from "@/lib/actions";
 import { contractLabel, dateRu, money, paymentStatusLabel } from "@/lib/format";
-import type { Contract, NamedType, Payment, Subcontractor } from "@/lib/types";
-import { Btn, CreatableSelect, Field, ItemList, ItemRow, Modal, PageHeader, inputClass } from "./ui";
+import { dueDate, toIso } from "@/lib/deadline";
+import { EXPENSE_TYPES, expenseLabel } from "@/lib/finance";
+import type { Deal, ExpenseType, NamedItem, Payment } from "@/lib/types";
+import { DeadlineField, DocsField, Field, MoneyInput, NamedSelect, inputClass } from "./fields";
+import { DealPicker } from "./DealLedger";
+import { showNotice } from "./ChangeNotice";
 
-const EMPTY = {
-  id: "",
-  expenseTypeId: "exp-contract",
-  contractId: "",
-  counterparty: "",
-  purpose: "",
-  amount: "",
-  dueDate: "",
-};
-
-function statusChip(status: string) {
-  const label = paymentStatusLabel(status);
-  const cls =
-    status === "PAID"
-      ? "bg-emerald-100 text-emerald-800"
-      : status === "APPROVED"
-        ? "bg-sky-100 text-sky-800"
-        : "bg-amber-100 text-amber-900";
-  return <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${cls}`}>{label}</span>;
-}
+const TH = "whitespace-nowrap px-3 py-2 text-left text-[11px] font-medium text-slate-500";
+const TD = "px-3 py-2 text-sm text-slate-700";
 
 export function PaymentsClient({
   payments,
-  contracts,
-  expenseTypes,
+  deals,
   counterparties,
 }: {
   payments: Payment[];
-  contracts: Contract[];
-  expenseTypes: NamedType[];
-  counterparties: Subcontractor[];
+  deals: Deal[];
+  counterparties: NamedItem[];
 }) {
-  const [types, setTypes] = useState(expenseTypes);
-  const [parties, setParties] = useState(counterparties);
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState(EMPTY);
-  const [keepDocs, setKeepDocs] = useState<Payment["documents"]>([]);
-  const [files, setFiles] = useState<FileList | null>(null);
-  const [error, setError] = useState("");
-  const [pending, start] = useTransition();
-
-  const typeMap = useMemo(() => Object.fromEntries(types.map((t) => [t.id, t])), [types]);
-  const contractById = useMemo(() => Object.fromEntries(contracts.map((c) => [c.id, c])), [contracts]);
-  const selectedType = typeMap[form.expenseTypeId];
-  const byContract = selectedType?.code === "CONTRACT";
-
-  function create() {
-    setForm({ ...EMPTY, expenseTypeId: types[0]?.id ?? "" });
-    setKeepDocs([]);
-    setFiles(null);
-    setError("");
-    setOpen(true);
-  }
-
-  function edit(p: Payment) {
-    setForm({
-      id: p.id,
-      expenseTypeId: p.expenseTypeId,
-      contractId: p.contractId ?? "",
-      counterparty: p.counterparty,
-      purpose: p.purpose,
-      amount: String(p.amount),
-      dueDate: p.dueDate,
-    });
-    setKeepDocs(p.documents);
-    setFiles(null);
-    setError("");
-    setOpen(true);
-  }
-
-  function submit() {
-    const fd = new FormData();
-    Object.entries(form).forEach(([k, v]) => fd.set(k, v));
-    keepDocs.forEach((d) => fd.append("keepDocIds", d.id));
-    if (files) Array.from(files).forEach((f) => fd.append("documents", f));
-    start(async () => {
-      const res = await upsertPayment(fd);
-      if (res?.error) setError(res.error);
-      else setOpen(false);
-    });
-  }
+  const [expenseType, setExpenseType] = useState<ExpenseType>("MATERIALS");
+  const dealMap = Object.fromEntries(deals.map((d) => [d.id, d]));
+  const paid = payments.filter((p) => p.status === "PAID").reduce((s, p) => s + p.amount, 0);
 
   return (
-    <>
-      <PageHeader
-        title="Реестр платежей"
-        subtitle="Сначала согласование директором, затем оплата бухгалтером"
-        action={<Btn onClick={create}>Добавить платёж</Btn>}
-      />
-      <ItemList empty={payments.length === 0} emptyText="Платежей пока нет">
-        {payments.map((p) => {
-          const status = p.status ?? "PENDING";
-          return (
-            <ItemRow
-              key={p.id}
-              onClick={() => edit(p)}
-              title={p.purpose || p.counterparty || "Платёж"}
-              lines={[
-                `${typeMap[p.expenseTypeId]?.name ?? "Тип"} · ${p.counterparty || "—"}`,
-                p.contractId && contractById[p.contractId]
-                  ? contractLabel(contractById[p.contractId])
-                  : dateRu(p.dueDate),
-              ]}
-              right={
-                <>
-                  <div className="whitespace-nowrap font-medium">{money(p.amount)}</div>
-                  <div className="mt-1">{statusChip(status)}</div>
-                </>
-              }
-              actions={
-                <>
-                  {status === "PENDING" ? (
-                    <button
-                      className="text-sm text-sky-700"
-                      onClick={() => start(async () => { await setPaymentStatus(p.id, "APPROVED"); })}
-                    >
-                      Согласовать
-                    </button>
-                  ) : null}
-                  {status === "APPROVED" ? (
-                    <button
-                      className="text-sm text-emerald-700"
-                      onClick={() => start(async () => { await setPaymentStatus(p.id, "PAID"); })}
-                    >
-                      Оплатить
-                    </button>
-                  ) : null}
-                  <button className="text-sm text-red-600" onClick={() => start(() => deletePayment(p.id))}>
-                    Удалить
-                  </button>
-                </>
-              }
-            />
-          );
-        })}
-      </ItemList>
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold">Расходы</h1>
+          <p className="mt-0.5 text-sm text-slate-600">
+            Согласование директора, затем оплата бухгалтером · оплачено {money(paid)}
+          </p>
+        </div>
+        <button onClick={() => setOpen(true)} className="min-h-9 bg-slate-900 px-3 text-sm font-semibold text-white">
+          Добавить платёж
+        </button>
+      </div>
 
-      <Modal title={form.id ? "Редактирование платежа" : "Новый платёж"} open={open} onClose={() => setOpen(false)}>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="sm:col-span-2 space-y-1.5">
-            <span className="text-sm font-medium text-slate-700">Тип расхода</span>
-            <CreatableSelect
-              value={form.expenseTypeId}
-              options={types.map((t) => ({ value: t.id, label: t.name }))}
-              onChange={(expenseTypeId) => setForm({ ...form, expenseTypeId })}
-              createLabel="+ Добавить тип"
-              onCreate={async (name) => {
-                const res = await addNamedType("expense", name);
-                if (res.item) {
-                  setTypes((prev) => (prev.some((t) => t.id === res.item!.id) ? prev : [...prev, res.item!]));
-                  setForm((f) => ({ ...f, expenseTypeId: res.item!.id }));
-                }
-              }}
-            />
-          </div>
-          {byContract ? (
-            <div className="sm:col-span-2">
-              <Field label="Договор (заказчик_номер_дата_наименование)">
-                <select
-                  className={inputClass}
-                  value={form.contractId}
-                  onChange={(e) => setForm({ ...form, contractId: e.target.value })}
-                >
-                  <option value="">Выберите договор</option>
-                  {contracts.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {contractLabel(c)}
-                    </option>
+      <div className="overflow-hidden rounded-2xl border border-slate-300 bg-white">
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-200 bg-slate-50">
+                <th className={TH}>Договор</th>
+                <th className={TH}>Тип</th>
+                <th className={TH}>Контрагент</th>
+                <th className={TH}>Назначение</th>
+                <th className={TH}>Сумма</th>
+                <th className={TH}>Срок</th>
+                <th className={TH}>Статус</th>
+                <th className={TH}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {payments.length === 0 ? (
+                <tr>
+                  <td className="px-3 py-8 text-center text-slate-400" colSpan={8}>
+                    Реестр пуст
+                  </td>
+                </tr>
+              ) : (
+                payments.map((p) => {
+                  const deal = dealMap[p.dealId];
+                  const due = dueDate(p.due);
+                  return (
+                    <tr key={p.id} className="border-t border-slate-100">
+                      <td className={`${TD} min-w-[14rem] font-medium`}>
+                        {deal ? contractLabel(deal) : "Договор удалён"}
+                      </td>
+                      <td className={`${TD} whitespace-nowrap`}>{expenseLabel(p.expenseType)}</td>
+                      <td className={TD}>{p.counterparty}</td>
+                      <td className={TD}>{p.purpose}</td>
+                      <td className={`${TD} whitespace-nowrap font-medium tabular-nums`}>{money(p.amount)}</td>
+                      <td className={`${TD} whitespace-nowrap tabular-nums`}>{due ? dateRu(toIso(due)) : "—"}</td>
+                      <td className={`${TD} whitespace-nowrap`}>{paymentStatusLabel(p.status)}</td>
+                      <td className={`${TD} whitespace-nowrap`}>
+                        <div className="flex flex-wrap gap-2">
+                          {p.status === "PENDING" ? (
+                            <button
+                              className="text-sm font-medium text-slate-800 underline"
+                              onClick={async () => {
+                                const res = await setPaymentStatus(p.id, "APPROVED");
+                                if (res && "changes" in res && res.changes) showNotice(res.changes);
+                              }}
+                            >
+                              Согласовать
+                            </button>
+                          ) : null}
+                          {p.status === "APPROVED" ? (
+                            <button
+                              className="text-sm font-medium text-slate-800 underline"
+                              onClick={async () => {
+                                const res = await setPaymentStatus(p.id, "PAID");
+                                if (res && "changes" in res && res.changes) showNotice(res.changes);
+                              }}
+                            >
+                              Оплачено
+                            </button>
+                          ) : null}
+                          <button
+                            className="text-sm text-red-800"
+                            onClick={async () => {
+                              await deletePayment(p.id);
+                              showNotice(["Расход удалён"]);
+                            }}
+                          >
+                            Удалить
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {open ? (
+        <div className="fixed inset-0 z-40 flex items-end bg-slate-900/50 p-0 sm:items-center sm:justify-center sm:p-3">
+          <form
+            action={async (fd) => {
+              const res = await upsertPayment(fd);
+              if (res && "error" in res && res.error) return;
+              if (res && "changes" in res && res.changes) showNotice(res.changes);
+              setOpen(false);
+              setExpenseType("MATERIALS");
+            }}
+            className="max-h-[92vh] w-full overflow-auto bg-white p-4 sm:max-w-lg"
+          >
+            <h2 className="mb-4 text-lg font-semibold">Новый платёж</h2>
+            <div className="grid gap-3">
+              <Field label="Договор">
+                <DealPicker deals={deals} name="dealId" />
+              </Field>
+              <Field label="Контрагент">
+                <NamedSelect
+                  name="counterparty"
+                  kind="counterparties"
+                  items={counterparties}
+                  placeholder="Выберите контрагента"
+                  addLabel="Добавить контрагента"
+                />
+              </Field>
+              <Field label="Тип расхода">
+                <input type="hidden" name="expenseType" value={expenseType} />
+                <div className="flex flex-wrap gap-1">
+                  {EXPENSE_TYPES.map((t) => (
+                    <button
+                      key={t.key}
+                      type="button"
+                      onClick={() => setExpenseType(t.key)}
+                      className={`min-h-9 flex-1 rounded-md px-2 text-xs font-medium sm:text-sm ${
+                        expenseType === t.key ? "bg-slate-900 text-white" : "border border-slate-300 bg-white"
+                      }`}
+                    >
+                      {t.label}
+                    </button>
                   ))}
-                </select>
+                </div>
+              </Field>
+              <Field label="Сумма платежа">
+                <MoneyInput name="amount" />
+              </Field>
+              <Field label="Назначение платежа">
+                <input name="purpose" required className={inputClass} />
+              </Field>
+              <DeadlineField prefix="due" label="Срок оплаты" />
+              <Field label="Документ">
+                <DocsField name="documents" keepName="keepDocIds" />
               </Field>
             </div>
-          ) : null}
-          <div className="space-y-1.5">
-            <span className="text-sm font-medium text-slate-700">Наименование контрагента</span>
-            <CreatableSelect
-              value={form.counterparty}
-              options={parties.map((c) => ({ value: c.name, label: c.name }))}
-              onChange={(counterparty) => setForm({ ...form, counterparty })}
-              createLabel="+ Добавить контрагента"
-              placeholder="Выберите контрагента"
-              onCreate={async (name) => {
-                const res = await addCounterparty(name);
-                if (res.item) {
-                  setParties((prev) => (prev.some((c) => c.id === res.item!.id) ? prev : [...prev, res.item!]));
-                  setForm((f) => ({ ...f, counterparty: res.item!.name }));
-                }
-              }}
-            />
-          </div>
-          <Field label="Сумма платежа">
-            <input type="number" className={inputClass} value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
-          </Field>
-          <div className="sm:col-span-2">
-            <Field label="Назначение платежа">
-              <input className={inputClass} value={form.purpose} onChange={(e) => setForm({ ...form, purpose: e.target.value })} />
-            </Field>
-          </div>
-          <Field label="Срок оплаты">
-            <input type="date" className={inputClass} value={form.dueDate} onChange={(e) => setForm({ ...form, dueDate: e.target.value })} />
-          </Field>
-          <Field label="Документы">
-            <input type="file" multiple className={inputClass} onChange={(e) => setFiles(e.target.files)} />
-          </Field>
-          {keepDocs.length > 0 ? (
-            <div className="sm:col-span-2 text-sm">
-              Уже загружено:{" "}
-              {keepDocs.map((d) => (
-                <button
-                  key={d.id}
-                  type="button"
-                  className="mr-2 text-teal-700 underline"
-                  onClick={() => setKeepDocs(keepDocs.filter((x) => x.id !== d.id))}
-                  title="Убрать из платежа"
-                >
-                  {d.originalName} ×
-                </button>
-              ))}
+            <div className="mt-5 flex flex-col gap-2">
+              <button className="min-h-11 bg-slate-900 text-sm font-semibold text-white">Отправить на согласование</button>
+              <button type="button" onClick={() => setOpen(false)} className="min-h-11 text-sm">
+                Отмена
+              </button>
             </div>
-          ) : null}
+          </form>
         </div>
-        {!form.id ? (
-          <p className="mt-3 text-sm text-slate-500">После сохранения статус будет «На согласовании».</p>
-        ) : null}
-        {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
-        <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-          <Btn variant="ghost" onClick={() => setOpen(false)}>
-            Отмена
-          </Btn>
-          <Btn onClick={submit} disabled={pending}>
-            Сохранить
-          </Btn>
-        </div>
-      </Modal>
-    </>
+      ) : null}
+    </div>
   );
 }

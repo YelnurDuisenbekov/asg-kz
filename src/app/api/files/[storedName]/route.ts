@@ -10,11 +10,12 @@ export async function GET(
     return new NextResponse("Not found", { status: 404 });
   }
   const db = await readDb();
-  const doc = [
+  const docs = [
+    ...db.deals.flatMap((d) => [...d.documents, ...d.submissionDocuments, ...d.protocolDocuments]),
     ...db.payments.flatMap((p) => p.documents),
-    ...db.contracts.flatMap((c) => c.documents ?? []),
-    ...(db.workItems ?? []).flatMap((w) => w.documents ?? []),
-  ].find((d) => d.storedName === storedName);
+    ...db.avrs.flatMap((a) => a.documents),
+  ];
+  const doc = docs.find((d) => d.storedName === storedName);
   if (!doc) return new NextResponse("Not found", { status: 404 });
   const file = await readUpload(storedName);
   if (!file) return new NextResponse("Not found", { status: 404 });

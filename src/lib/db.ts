@@ -2,7 +2,7 @@ import { mkdirSync, readFileSync, renameSync, writeFileSync } from "fs";
 import { mkdir, readFile, unlink, writeFile } from "fs/promises";
 import { join } from "path";
 import { BlobNotFoundError, del, get, put } from "@vercel/blob";
-import type { Database } from "./types";
+import type { Database, Deal } from "./types";
 
 const DATA_DIR = join(process.cwd(), "data");
 const DB_PATH = join(DATA_DIR, "db.json");
@@ -13,78 +13,71 @@ function useBlob() {
   return Boolean(process.env.BLOB_READ_WRITE_TOKEN) && Boolean(process.env.VERCEL);
 }
 
+function emptyEstimate() {
+  return { materials: 0, equipment: 0, labor: 0, specialTech: 0, profit: 0 };
+}
+
 function emptyDb(): Database {
   return {
-    settings: { approachingDays: 7 },
-    subcontractors: [],
-    counterparties: [],
-    people: [],
+    schemaVersion: 2,
     customers: [],
-    contracts: [],
-    expenseTypes: [
-      { id: "exp-contract", name: "По договору", isSystem: true, code: "CONTRACT" },
-      { id: "exp-aup", name: "АУП", isSystem: true },
-      { id: "exp-fot", name: "ФОТ", isSystem: true },
-      { id: "exp-tax", name: "Налоги", isSystem: true },
-    ],
-    incomeTypes: [
-      { id: "inc-contract", name: "По договору", isSystem: true, code: "CONTRACT" },
-    ],
+    counterparties: [],
+    subcontractors: [],
+    deals: [],
     payments: [],
     incomes: [],
-    plannedIncomes: [],
-    tasks: [],
-    workItems: [],
+    avrs: [],
+  };
+}
+
+function normalizeDeal(d: Partial<Deal>): Deal {
+  return {
+    id: d.id ?? crypto.randomUUID(),
+    cluster: d.cluster ?? "PRETENDER",
+    executor: d.executor ?? "ASG",
+    title: d.title ?? "",
+    customer: d.customer ?? "",
+    amount: d.amount ?? 0,
+    documents: d.documents ?? [],
+    deadline: d.deadline ?? { mode: "DATE" },
+    createdAt: d.createdAt ?? new Date().toISOString(),
+    clusterEnteredAt: d.clusterEnteredAt ?? d.createdAt ?? new Date().toISOString(),
+    announcementNumber: d.announcementNumber,
+    lotNumber: d.lotNumber,
+    tenderUrl: d.tenderUrl,
+    submissionDocuments: d.submissionDocuments ?? [],
+    resultsDeadline: d.resultsDeadline,
+    tenderStatus: d.tenderStatus,
+    protocolDocuments: d.protocolDocuments ?? [],
+    contractNumber: d.contractNumber,
+    contractDate: d.contractDate,
+    estimate: { ...emptyEstimate(), ...d.estimate },
+    tasks: d.tasks ?? [],
+    approvalDays: d.approvalDays,
+    signingDays: d.signingDays,
+    conclusionStartedAt: d.conclusionStartedAt,
+    executionType: d.executionType,
+    subcontractorIds: d.subcontractorIds ?? [],
   };
 }
 
 function normalize(parsed: Partial<Database> | null | undefined): Database {
   const base = emptyDb();
-  if (!parsed) return base;
+  if (!parsed || parsed.schemaVersion !== 2) return base;
   return {
     ...base,
     ...parsed,
-    settings: { ...base.settings, ...parsed.settings },
-    expenseTypes: parsed.expenseTypes?.length ? parsed.expenseTypes : base.expenseTypes,
-    incomeTypes: parsed.incomeTypes?.length ? parsed.incomeTypes : base.incomeTypes,
-    contracts: (parsed.contracts ?? []).map((c) => ({
-      ...c,
-      title: c.title ?? "",
-      documents: c.documents ?? [],
-    })),
-    people: parsed.people ?? [],
+    schemaVersion: 2,
+    customers: parsed.customers ?? [],
+    counterparties: parsed.counterparties ?? [],
+    subcontractors: parsed.subcontractors ?? [],
+    deals: (parsed.deals ?? []).map(normalizeDeal),
     payments: (parsed.payments ?? []).map((p) => ({
       ...p,
-      status: p.status ?? "PENDING",
+      expenseType: p.expenseType ?? "MATERIALS",
     })),
-    workItems: (parsed.workItems ?? []).map((w) => ({
-      ...w,
-      documents: w.documents ?? [],
-      status: w.status ?? "NEW",
-    })),
-    counterparties: (() => {
-      const list = [...(parsed.counterparties ?? [])];
-      for (const p of parsed.payments ?? []) {
-        const name = p.counterparty?.trim();
-        if (name && !list.some((c) => c.name.toLowerCase() === name.toLowerCase())) {
-          list.push({ id: `cp-${list.length}-${name}`, name });
-        }
-      }
-      return list;
-    })(),
-    customers: (() => {
-      const list = [...(parsed.customers ?? [])];
-      for (const name of [
-        ...(parsed.contracts ?? []).map((c) => c.customer),
-        ...(parsed.workItems ?? []).map((w) => w.customer),
-      ]) {
-        const n = name?.trim();
-        if (n && !list.some((c) => c.name.toLowerCase() === n.toLowerCase())) {
-          list.push({ id: `cu-${list.length}-${n}`, name: n });
-        }
-      }
-      return list;
-    })(),
+    incomes: parsed.incomes ?? [],
+    avrs: parsed.avrs ?? [],
   };
 }
 

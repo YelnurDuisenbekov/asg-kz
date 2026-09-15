@@ -1,15 +1,16 @@
 import type { Metadata, Viewport } from "next";
-import { Manrope } from "next/font/google";
-import { AppShell } from "@/components/ui";
+import { IBM_Plex_Sans } from "next/font/google";
+import { AppShell } from "@/components/shell";
 import "./globals.css";
 
-const manrope = Manrope({
+const plex = IBM_Plex_Sans({
   subsets: ["latin", "cyrillic"],
+  weight: ["400", "500", "600", "700"],
 });
 
 export const metadata: Metadata = {
-  title: "ASG.KZ — контроль проектов",
-  description: "Договоры, платежи, доходы и сетевой график",
+  title: "ASG.KZ — договоры",
+  description: "Жизненный цикл договоров ASG и СтройПроект",
 };
 
 export const viewport: Viewport = {
@@ -23,7 +24,7 @@ export const dynamic = "force-dynamic";
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="ru" className={`${manrope.className} h-full antialiased`}>
+    <html lang="ru" className={`${plex.className} h-full antialiased`}>
       <body className="min-h-full font-sans">
         <AppShell>{children}</AppShell>
       </body>
